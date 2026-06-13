@@ -54,7 +54,8 @@ key exists in Key Vault and transiently (masked) in one runner step.
      --resource-group sm-automation \
      --location australiaeast \
      --vault sm-claude-kv \
-     --app-name SimpleMotion-Claude
+     --app-name SimpleMotion-Claude \
+     --orgs "simplemotion 2000-sm-manage 3000-sm-design ..."
    ```
 
    Delete the local `.pem` afterwards; Key Vault is now the source of truth.
@@ -86,28 +87,44 @@ key exists in Key Vault and transiently (masked) in one runner step.
 The federated credential decides *which GitHub job* may pull the key. Get this
 tight or the whole design is moot.
 
-- **Primary (used by the provisioning script):** flexible match on the
-  `job_workflow_ref` claim, pinning trust to *this exact reusable workflow
-  file* regardless of which org repo calls it:
+**Verified tenant behaviour (SM tenant, 2026-06-13).** Flexible FICs *are*
+available, but for the GitHub Actions issuer the matching expression accepts
+**only the `sub` claim** (with `eq` or `matches`). Every other claim is
+refused:
+
+| Expression | Result |
+|---|---|
+| `claims['sub'] eq '…'` | ✅ accepted |
+| `claims['sub'] matches 'repo:simplemotion/.*:environment:claude-bot'` | ✅ accepted |
+| `claims['job_workflow_ref'] …` | ❌ "unallowed claim" |
+| `claims['repository'] …` / `claims['repository_owner'] …` | ❌ "cannot use operator" |
+
+So you **cannot** pin trust to the reusable workflow via `job_workflow_ref` —
+trust can only anchor to the caller repo's `sub`.
+
+- **Primary (used by the provisioning script):** one flexible FIC **per org**,
+  wildcarding repos within it and pinning the `claude-bot` environment:
 
   ```
-  claims['job_workflow_ref'] eq
-    'simplemotion/.github/.github/workflows/claude.yml@refs/heads/main'
+  claims['sub'] matches 'repo:<ORG>/.*:environment:claude-bot'
   ```
 
-  This needs **flexible federated identity credentials** enabled in the
-  tenant. Validate before rollout — if unavailable, the script warns and you
-  use the fallback.
+  Trust = (that org) AND (the `claude-bot` environment). The reusable workflow
+  sets `environment: claude-bot`, so the caller's OIDC `sub` carries the
+  `:environment:claude-bot` suffix and matches. ~33 orgs → ~33 FICs; if you hit
+  the per-app FIC limit, use the fallback.
 
 - **Fallback:** run the token-mint only in a single dedicated automation repo
-  and federate on an exact subject with a protected environment:
+  and federate on an **exact** `sub` (a plain non-flexible FIC works) with a
+  protected environment:
 
   ```
-  repo:simplemotion/<automation-repo>:environment:claude-bot
+  repo:<automation-repo>:environment:claude-bot
   ```
 
-- **Do NOT** federate on a loose `repo:simplemotion/*` subject — that lets any
-  workflow in any repo assume the identity and pull the key.
+- **Do NOT** widen the wildcard to `repo:<ORG>/.*` without the
+  `:environment:claude-bot` anchor, and never to a cross-org pattern — either
+  lets unintended workflows assume the identity and pull the key.
 
 The reusable workflow pins `environment: claude-bot`; attach required reviewers
 / branch filters to that environment for an extra gate.
