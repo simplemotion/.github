@@ -1,0 +1,35 @@
+# SimpleMotion Claude bot — per-repo caller stub.
+#
+# Distributed org-wide via this repo's workflow-templates/ directory: it appears
+# under "Actions → New workflow → SimpleMotion" for every repo in the org.
+#
+# Carries NO secrets. The privileged work (OIDC → Key Vault → token mint) lives
+# in the central reusable workflow. The Azure IDs below are non-sensitive and
+# are read from org-level Actions *variables* (vars), set once per org.
+
+name: claude
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  claude:
+    # Only react to an explicit @claude mention.
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+    uses: simplemotion/.github/.github/workflows/claude.yml@main
+    with:
+      app_id: ${{ vars.SM_CLAUDE_APP_ID }}
+      kv_name: ${{ vars.SM_CLAUDE_KV_NAME }}
+      azure_client_id: ${{ vars.SM_CLAUDE_AZURE_CLIENT_ID }}
+      azure_tenant_id: ${{ vars.SM_AZURE_TENANT_ID }}
+      azure_subscription_id: ${{ vars.SM_AZURE_SUBSCRIPTION_ID }}
+    secrets:
+      anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
