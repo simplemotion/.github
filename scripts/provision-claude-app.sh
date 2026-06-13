@@ -14,6 +14,15 @@
 #   - Install the App into each org (needs org-admin consent).
 #   - Set the GitHub org variables/secrets (run scripts described in the docs).
 #
+# Federation model (VERIFIED against the SM tenant 2026-06-13, see
+# docs/claude-github-app.md "Federation scoping"):
+#   For the GitHub Actions issuer, Entra flexible FICs accept ONLY the `sub`
+#   claim in the matching expression (eq or matches). `job_workflow_ref`,
+#   `repository`, and `repository_owner` are all rejected. So we create ONE
+#   flexible FIC per org, wildcarding repos within it and pinning the
+#   environment:
+#       claims['sub'] matches 'repo:<ORG>/.*:environment:<ENV>'
+#
 # Usage:
 #   ./provision-claude-app.sh \
 #       --pem ./claude-app.pem \
@@ -21,8 +30,9 @@
 #       --location australiaeast \
 #       --vault sm-claude-kv \
 #       --app-name SimpleMotion-Claude \
-#       [--secret-name claude-app-private-key] \
-#       [--workflow-ref "simplemotion/.github/.github/workflows/claude.yml@refs/heads/main"]
+#       --orgs "simplemotion 2000-sm-manage 3000-sm-design ..." \
+#       [--environment claude-bot] \
+#       [--secret-name claude-app-private-key]
 
 set -euo pipefail
 
@@ -32,7 +42,8 @@ LOCATION="australiaeast"
 VAULT=""
 APP_NAME="SimpleMotion-Claude"
 SECRET_NAME="claude-app-private-key"
-WORKFLOW_REF="simplemotion/.github/.github/workflows/claude.yml@refs/heads/main"
+ORGS=""
+ENVIRONMENT="claude-bot"
 ISSUER="https://token.actions.githubusercontent.com"
 AUDIENCE="api://AzureADTokenExchange"
 
@@ -44,12 +55,13 @@ while [ $# -gt 0 ]; do
     --vault)          VAULT="$2"; shift 2 ;;
     --app-name)       APP_NAME="$2"; shift 2 ;;
     --secret-name)    SECRET_NAME="$2"; shift 2 ;;
-    --workflow-ref)   WORKFLOW_REF="$2"; shift 2 ;;
+    --orgs)           ORGS="$2"; shift 2 ;;
+    --environment)    ENVIRONMENT="$2"; shift 2 ;;
     *) echo "Unknown arg: $1" >&2; exit 2 ;;
   esac
 done
 
-for v in PEM RG VAULT; do
+for v in PEM RG VAULT ORGS; do
   if [ -z "${!v}" ]; then echo "Missing required --${v,,}" >&2; exit 2; fi
 done
 [ -f "$PEM" ] || { echo "PEM file not found: $PEM" >&2; exit 2; }
@@ -84,31 +96,37 @@ az role assignment create \
   --scope "${VAULT_ID}/secrets/${SECRET_NAME}" -o none
 echo "RBAC: Key Vault Secrets User on ${SECRET_NAME}"
 
-# 5. Federated credential.
-#    PRIMARY: flexible match on job_workflow_ref, so trust is pinned to THIS
-#    reusable workflow file regardless of which org repo calls it. Validate
-#    that flexible federated identity credentials are enabled in the tenant.
-FIC_JSON=$(cat <<JSON
+# 5. Federated credentials — ONE flexible FIC per org.
+#    Only the `sub` claim is accepted for the GitHub issuer (verified), so each
+#    org gets a FIC wildcarding its repos and pinning the claude-bot
+#    environment. Created via `az rest` against the BETA Graph endpoint, since
+#    `az ad app federated-credential create` is subject-only.
+OBJ_ID="$(az ad app show --id "$APP_ID" --query id -o tsv)"
+FIC_URL="https://graph.microsoft.com/beta/applications/${OBJ_ID}/federatedIdentityCredentials"
+
+for org in $ORGS; do
+  fic_name="claude-${org}"
+  expr="claims['sub'] matches 'repo:${org}/.*:environment:${ENVIRONMENT}'"
+  body=$(cat <<JSON
 {
-  "name": "claude-reusable-workflow",
+  "name": "${fic_name}",
   "issuer": "${ISSUER}",
   "audiences": ["${AUDIENCE}"],
-  "claimsMatchingExpression": {
-    "value": "claims['job_workflow_ref'] eq '${WORKFLOW_REF}'",
-    "languageVersion": 1
-  }
+  "claimsMatchingExpression": { "value": "${expr}", "languageVersion": 1 }
 }
 JSON
 )
-az ad app federated-credential create --id "$APP_ID" --parameters "$FIC_JSON" -o none \
-  && echo "Federated credential (job_workflow_ref) created." \
-  || {
-    echo "WARNING: flexible FIC create failed — tenant may not support" >&2
-    echo "claimsMatchingExpression. Fall back to a dedicated automation repo" >&2
-    echo "with an exact subject FIC, e.g.:" >&2
-    echo "  \"subject\": \"repo:simplemotion/<automation-repo>:environment:claude-bot\"" >&2
-    echo "See docs/claude-github-app.md → 'Federation scoping'." >&2
-  }
+  if az rest --method POST --url "$FIC_URL" \
+       --headers "Content-Type=application/json" --body "$body" -o none 2>/dev/null; then
+    echo "FIC created: ${fic_name}  (${expr})"
+  else
+    echo "WARNING: FIC create failed for org '${org}'. If you've hit the" >&2
+    echo "  per-app FIC limit, consolidate via a single dedicated automation" >&2
+    echo "  repo with an exact-subject FIC instead:" >&2
+    echo "    repo:<automation-repo>:environment:${ENVIRONMENT}" >&2
+    echo "  See docs/claude-github-app.md → 'Federation scoping'." >&2
+  fi
+done
 
 cat <<SUMMARY
 
