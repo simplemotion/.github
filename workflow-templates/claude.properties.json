@@ -1,0 +1,6 @@
+{
+  "name": "SimpleMotion Claude bot",
+  "description": "Respond to @claude mentions in issues and PRs as the SimpleMotion-Claude App. Authenticates via OIDC + Key Vault; stores no App private key in GitHub.",
+  "iconName": "octicon-comment-discussion",
+  "categories": ["Automation", "Code review"]
+}

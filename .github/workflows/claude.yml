@@ -1,0 +1,103 @@
+# Reusable workflow: run the SimpleMotion Claude bot in a calling repo.
+#
+# Identity model (see docs/claude-github-app.md):
+#   - The "SimpleMotion-Claude" GitHub App private key NEVER lives in GitHub.
+#   - This workflow proves its identity to Entra ID via GitHub OIDC, pulls the
+#     key from Azure Key Vault at runtime, mints a 1-hour installation token,
+#     and discards it. The only GitHub-stored secret is ANTHROPIC_API_KEY.
+#
+# Callers: see workflow-templates/claude.yml for the per-repo stub.
+#
+# Hardening note: third-party actions are pinned to release tags below for
+# readability. Before enterprise rollout, repin each to a full commit SHA
+# (see docs/claude-github-app.md "Hardening").
+
+name: claude
+
+on:
+  workflow_call:
+    inputs:
+      app_id:
+        description: "SimpleMotion-Claude GitHub App ID"
+        type: string
+        required: true
+      kv_name:
+        description: "Azure Key Vault name holding the App private key"
+        type: string
+        required: true
+      kv_secret_name:
+        description: "Key Vault secret name for the App private key (PEM)"
+        type: string
+        required: false
+        default: claude-app-private-key
+      azure_client_id:
+        description: "Entra workload-identity (federated) app client ID"
+        type: string
+        required: true
+      azure_tenant_id:
+        description: "Entra tenant ID"
+        type: string
+        required: true
+      azure_subscription_id:
+        description: "Azure subscription ID for the Key Vault"
+        type: string
+        required: true
+    secrets:
+      anthropic_api_key:
+        description: "Anthropic API key for the Claude Code action"
+        required: true
+
+jobs:
+  claude:
+    runs-on: ubuntu-latest
+    # Must match the environment claim the federated credential is scoped to.
+    environment: claude-bot
+    permissions:
+      id-token: write        # required to mint the GitHub OIDC token
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      # 1. Exchange the GitHub OIDC token for an Azure access token. No secret;
+      #    trust is anchored by the federated credential on the Entra app.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ inputs.azure_client_id }}
+          tenant-id: ${{ inputs.azure_tenant_id }}
+          subscription-id: ${{ inputs.azure_subscription_id }}
+
+      # 2. Pull the App private key from Key Vault into a masked step output.
+      - name: Fetch App private key from Key Vault
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          pem="$(az keyvault secret show \
+                   --vault-name '${{ inputs.kv_name }}' \
+                   --name '${{ inputs.kv_secret_name }}' \
+                   --query value -o tsv)"
+          # Mask every line so multi-line PEM never surfaces in logs.
+          while IFS= read -r line; do
+            [ -n "$line" ] && echo "::add-mask::$line"
+          done <<< "$pem"
+          {
+            echo "pem<<__PEM_EOF__"
+            echo "$pem"
+            echo "__PEM_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      # 3. Mint a short-lived (1-hour), repo-scoped installation token.
+      - name: Mint GitHub App installation token
+        id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ inputs.app_id }}
+          private-key: ${{ steps.key.outputs.pem }}
+
+      # 4. Run Claude as the SimpleMotion-Claude bot identity.
+      - name: Run Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ steps.token.outputs.token }}
+          anthropic_api_key: ${{ secrets.anthropic_api_key }}
