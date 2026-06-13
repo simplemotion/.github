@@ -17,6 +17,16 @@ on:
   issues:
     types: [opened, assigned]
 
+# A reusable workflow's token scopes are CAPPED by the caller, and the org/repo
+# default is read-only — so the caller must explicitly grant what the reusable
+# workflow needs (id-token for OIDC; write to post comments and push branches).
+# Without this the run fails at startup with a "workflow file issue".
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+  issues: write
+
 jobs:
   claude:
     # Only react to an explicit @claude mention.
