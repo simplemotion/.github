@@ -96,37 +96,52 @@ az role assignment create \
   --scope "${VAULT_ID}/secrets/${SECRET_NAME}" -o none
 echo "RBAC: Key Vault Secrets User on ${SECRET_NAME}"
 
-# 5. Federated credentials — ONE flexible FIC per org.
-#    Only the `sub` claim is accepted for the GitHub issuer (verified), so each
-#    org gets a FIC wildcarding its repos and pinning the claude-bot
-#    environment. Created via `az rest` against the BETA Graph endpoint, since
-#    `az ad app federated-credential create` is subject-only.
+# 5. Federated credentials — flexible FICs, orgs BATCHED via regex alternation.
+#    Verified tenant limits (2026-06-13): max 20 FICs per app, and each
+#    claimsMatchingExpression value is capped at 128 chars. Only the `sub` claim
+#    is accepted for the GitHub issuer. We therefore enumerate exact org logins
+#    (not a loose pattern — org names are globally registerable) and greedily
+#    pack them into alternation groups that stay under 128 chars:
+#        claims['sub'] matches 'repo:(orgA|orgB|orgC)/.*:environment:<env>'
+#    34 SM orgs -> ~12 FICs, well under the 20 cap.
+#    Created via `az rest` against BETA Graph (`az ad ...` is subject-only).
 OBJ_ID="$(az ad app show --id "$APP_ID" --query id -o tsv)"
 FIC_URL="https://graph.microsoft.com/beta/applications/${OBJ_ID}/federatedIdentityCredentials"
+MAX_LEN=128
 
-for org in $ORGS; do
-  fic_name="claude-${org}"
-  expr="claims['sub'] matches 'repo:${org}/.*:environment:${ENVIRONMENT}'"
-  body=$(cat <<JSON
-{
-  "name": "${fic_name}",
-  "issuer": "${ISSUER}",
-  "audiences": ["${AUDIENCE}"],
-  "claimsMatchingExpression": { "value": "${expr}", "languageVersion": 1 }
+mk_expr() {  # $1 = pipe-joined org list
+  printf "claims['sub'] matches 'repo:(%s)/.*:environment:%s'" "$1" "$ENVIRONMENT"
 }
+create_fic() {  # $1 = group index, $2 = pipe-joined org list
+  local name="claude-grp-$(printf '%02d' "$1")" expr; expr="$(mk_expr "$2")"
+  local body
+  body=$(cat <<JSON
+{ "name": "${name}", "issuer": "${ISSUER}", "audiences": ["${AUDIENCE}"],
+  "claimsMatchingExpression": { "value": "${expr}", "languageVersion": 1 } }
 JSON
 )
   if az rest --method POST --url "$FIC_URL" \
        --headers "Content-Type=application/json" --body "$body" -o none 2>/dev/null; then
-    echo "FIC created: ${fic_name}  (${expr})"
+    echo "FIC ${name}: ${2//|/, }"
   else
-    echo "WARNING: FIC create failed for org '${org}'. If you've hit the" >&2
-    echo "  per-app FIC limit, consolidate via a single dedicated automation" >&2
-    echo "  repo with an exact-subject FIC instead:" >&2
-    echo "    repo:<automation-repo>:environment:${ENVIRONMENT}" >&2
-    echo "  See docs/claude-github-app.md → 'Federation scoping'." >&2
+    echo "WARNING: FIC ${name} failed (group: ${2}). Likely the 20-FIC cap." >&2
+    echo "  Fallback: a single dedicated automation repo with an exact-sub FIC:" >&2
+    echo "    repo:<owner>/<automation-repo>:environment:${ENVIRONMENT}" >&2
+    echo "  See docs/claude-github-app.md -> 'Federation scoping'." >&2
+  fi
+}
+
+acc=""; n=0
+for org in $ORGS; do
+  cand="${acc:+$acc|}$org"
+  if [ -n "$acc" ] && [ "$(mk_expr "$cand" | wc -c)" -gt "$MAX_LEN" ]; then
+    n=$((n+1)); create_fic "$n" "$acc"; acc="$org"      # flush, start new group
+  else
+    acc="$cand"
   fi
 done
+[ -n "$acc" ] && { n=$((n+1)); create_fic "$n" "$acc"; }
+echo "Created ${n} FIC group(s) (cap 20)."
 
 cat <<SUMMARY
 
