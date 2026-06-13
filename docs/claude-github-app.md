@@ -102,29 +102,44 @@ refused:
 So you **cannot** pin trust to the reusable workflow via `job_workflow_ref` —
 trust can only anchor to the caller repo's `sub`.
 
-- **Primary (used by the provisioning script):** one flexible FIC **per org**,
-  wildcarding repos within it and pinning the `claude-bot` environment:
+**Verified capacity limits (same tenant, same date):**
+
+| Limit | Value |
+|---|---|
+| Federated credentials per app | **20** (21st: "size of the object has exceeded its limit") |
+| `claimsMatchingExpression` value length | **128 characters** |
+| Regex alternation in the expression | **supported** — `repo:(orgA\|orgB)/.*:…` |
+
+- **Primary (used by the provisioning script):** flexible FICs with org logins
+  **enumerated and batched** via regex alternation, each group kept under 128
+  chars and pinning the `claude-bot` environment:
 
   ```
-  claims['sub'] matches 'repo:<ORG>/.*:environment:claude-bot'
+  claims['sub'] matches 'repo:(orgA|orgB|orgC)/.*:environment:claude-bot'
   ```
 
-  Trust = (that org) AND (the `claude-bot` environment). The reusable workflow
-  sets `environment: claude-bot`, so the caller's OIDC `sub` carries the
-  `:environment:claude-bot` suffix and matches. ~33 orgs → ~33 FICs; if you hit
-  the per-app FIC limit, use the fallback.
+  Trust = (one of those exact orgs) AND (the `claude-bot` environment). The
+  reusable workflow sets `environment: claude-bot`, so the caller's OIDC `sub`
+  carries the `:environment:claude-bot` suffix and matches. The current 34 SM
+  orgs pack into **12 FICs** — well under the 20 cap. Run the script with
+  `--orgs "<space-separated logins>"`; it greedily batches.
 
-- **Fallback:** run the token-mint only in a single dedicated automation repo
-  and federate on an **exact** `sub` (a plain non-flexible FIC works) with a
-  protected environment:
+- **Enumerate, don't pattern-match.** A regex like `repo:[0-9]{4}-.*-SM-.*`
+  would collapse this to ~2 FICs, but org logins are globally registerable on
+  github.com — an attacker could claim a matching name and assume the identity.
+  Since this guards the App private key, list exact logins.
+
+- **Fallback (if you ever exceed 20 FICs):** run the token-mint only in a
+  single dedicated automation repo and federate on an **exact** `sub` (a plain
+  non-flexible FIC works) with a protected environment:
 
   ```
-  repo:<automation-repo>:environment:claude-bot
+  repo:<owner>/<automation-repo>:environment:claude-bot
   ```
 
-- **Do NOT** widen the wildcard to `repo:<ORG>/.*` without the
-  `:environment:claude-bot` anchor, and never to a cross-org pattern — either
-  lets unintended workflows assume the identity and pull the key.
+- **Do NOT** drop the `:environment:claude-bot` anchor or widen to a cross-org
+  wildcard — either lets unintended workflows assume the identity and pull the
+  key.
 
 The reusable workflow pins `environment: claude-bot`; attach required reviewers
 / branch filters to that environment for an extra gate.
