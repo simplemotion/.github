@@ -80,7 +80,19 @@ key exists in Key Vault and transiently (masked) in one runner step.
 
 5. **Adopt the caller stub** in repos that want the bot — via the org "New
    workflow" template, or commit `workflow-templates/claude.yml` content to
-   `.github/workflows/claude.yml` in the target repo.
+   `.github/workflows/claude.yml` in the target repo. The target repo must also
+   have a **`claude-bot` environment** (matches the FIC subject).
+
+### Caller/runtime requirements (learned from the pilot)
+
+- **Caller must grant token scopes.** A reusable workflow's permissions are
+  capped by the caller, and SimpleMotion's org/repo default is read-only. The
+  caller stub therefore declares `permissions: { id-token: write, contents:
+  write, pull-requests: write, issues: write }`. Omit it and the run fails at
+  startup with a generic "workflow file issue".
+- **Checkout before Claude.** The reusable workflow runs `actions/checkout`
+  (with the minted token) before `claude-code-action`, which needs a working
+  tree to branch from — otherwise: `fatal: not a git repository`.
 
 ## Federation scoping — the critical control
 

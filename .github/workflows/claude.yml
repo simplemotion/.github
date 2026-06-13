@@ -95,7 +95,14 @@ jobs:
           app-id: ${{ inputs.app_id }}
           private-key: ${{ steps.key.outputs.pem }}
 
-      # 4. Run Claude as the SimpleMotion-Claude bot identity.
+      # 4. Check out the repo with the App token so the action can branch/push.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.token.outputs.token }}
+          fetch-depth: 0
+
+      # 5. Run Claude as the SimpleMotion-Claude bot identity.
       - name: Run Claude
         uses: anthropics/claude-code-action@v1
         with:
