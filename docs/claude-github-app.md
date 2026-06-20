@@ -140,6 +140,38 @@ renamed pilot stack and needs nothing).
   (with the minted token) before `claude-code-action`, which needs a working
   tree to branch from — otherwise: `fatal: not a git repository`.
 
+## Plugin association — domain skills per family
+
+Each family maps 1:1 to a Claude Code plugin in the enterprise marketplace
+`simplemotion/sm-plugins` (the plugin names match: `sm-design`, `sm-govern`, …).
+When `@claude` runs in a family's repo, the reusable workflow loads that family's
+plugin so the bot carries the right domain skills — the design bot gets
+`sm-design`, the govern bot gets `sm-govern`, and so on.
+
+How it loads (set per org via the `SM_CLAUDE_PLUGIN` var, e.g. `sm-design`):
+
+1. `sm-plugins` is `internal`, and the family's minted token is scoped to the
+   *calling* repo — it cannot clone the marketplace. So the workflow mints a
+   SECOND token from a shared, read-only **marketplace-reader** GitHub App
+   (`sm-claude-marketplace-reader`, installed only on `simplemotion/sm-plugins`,
+   Contents: read). Its key lives in the same Key Vault
+   (`claude-marketplace-reader-key`); every family's service principal has read
+   RBAC on that one secret, so the family's existing Azure identity can fetch it
+   — no new long-lived credential, marketplace stays internal.
+2. The workflow checks out `sm-plugins` into `./.sm-plugins` with that read-only
+   token, then runs the action with `claude_args: --plugin-dir
+   .sm-plugins/plugins/<plugin>`. `--plugin-dir` loads the plugin (and its
+   skills) for that session only.
+
+Both `SM_CLAUDE_PLUGIN` and `SM_CLAUDE_READER_APP_ID` are optional: if either is
+unset the bot simply runs with no plugin (still fully functional). The
+marketplace‑reader App ID is shared across all families — set `SM_CLAUDE_READER_APP_ID`
+once per org (it's the same value everywhere).
+
+> Note: `sm-simple` bundles MCP servers (M365/Xero) that need credentials. In CI
+> those servers fail to connect (non‑fatal — Claude continues); only the skills
+> are used. The other nine plugins are skills‑only and load cleanly.
+
 ## Federation scoping — the critical control
 
 The federated credential decides *which GitHub job* may pull a key. Get this

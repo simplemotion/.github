@@ -45,5 +45,9 @@ jobs:
       azure_client_id: ${{ vars.SM_CLAUDE_AZURE_CLIENT_ID }}
       azure_tenant_id: ${{ vars.SM_AZURE_TENANT_ID }}
       azure_subscription_id: ${{ vars.SM_AZURE_SUBSCRIPTION_ID }}
+      # Load this org's family plugin (skills) from the enterprise marketplace.
+      # Both unset → the bot runs with no plugin (still fully functional).
+      plugin: ${{ vars.SM_CLAUDE_PLUGIN }}
+      marketplace_reader_app_id: ${{ vars.SM_CLAUDE_READER_APP_ID }}
     secrets:
       anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
