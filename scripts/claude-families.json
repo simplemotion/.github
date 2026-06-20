@@ -1,0 +1,84 @@
+{
+  "_comment": "Canonical map of Claude bot App families. One stack per tier-1 org family (a tier-1 org + its numeric-prefix tier-2 children). client_id/entra_app are NOT secret. The App private key lives only in Key Vault (secret named per kv_secret). See docs/claude-github-app.md.",
+  "shared": {
+    "resource_group": "sm-automation",
+    "vault": "sm-claude-kv",
+    "location": "australiaeast",
+    "environment": "claude-bot",
+    "tenant_id": "7fdf19e4-d123-4c78-86c6-c68ac5a0d1d2",
+    "subscription_id": "fe1a68af-e790-475e-81f0-84b5fe6d040d"
+  },
+  "families": {
+    "simple": {
+      "github_app": "sm-claude-simple",
+      "entra_app": "SimpleMotion-Claude-OIDC-Simple",
+      "client_id": "5f60e040-174c-4c7e-aa36-3f53c0010a85",
+      "github_app_id": 4042107,
+      "kv_secret": "claude-app-private-key",
+      "orgs": ["simplemotion"]
+    },
+    "client": {
+      "github_app": "sm-claude-client",
+      "entra_app": "SimpleMotion-Claude-OIDC-Client",
+      "client_id": "5d2b9788-9ee3-41e2-87c3-1c39c5839cc8",
+      "kv_secret": "claude-app-private-key-client",
+      "orgs": ["1000-0000-SM-Client"]
+    },
+    "manage": {
+      "github_app": "sm-claude-manage",
+      "entra_app": "SimpleMotion-Claude-OIDC-Manage",
+      "client_id": "14371522-51d8-4abd-a308-f8699b05d9cf",
+      "kv_secret": "claude-app-private-key-manage",
+      "orgs": ["2000-0000-SM-Manage", "2019-0000-SM-Manage", "2020-0000-SM-Manage", "2021-0000-SM-Manage", "2022-0000-SM-Manage", "2023-0000-SM-Manage", "2024-0000-SM-Manage", "2025-0000-SM-Manage", "2026-0000-SM-Manage"]
+    },
+    "design": {
+      "github_app": "sm-claude-design",
+      "entra_app": "SimpleMotion-Claude-OIDC-Design",
+      "client_id": "b05448a7-addc-48e4-aca6-45b530af4f3e",
+      "kv_secret": "claude-app-private-key-design",
+      "orgs": ["3000-0000-SM-Design", "3400-0000-SM-Software", "3401-0000-SM-Simplicity-v01", "3402-SM-Simplicity-v02", "3403-0000-SM-Simplicity-v03", "3404-0000-SM-Simplicity-v04", "3497-0000-SM-ScratchPad", "3498-0000-SM-Simplicity", "3499-0000-SM-Legacy"]
+    },
+    "supply": {
+      "github_app": "sm-claude-supply",
+      "entra_app": "SimpleMotion-Claude-OIDC-Supply",
+      "client_id": "a051a756-ba8b-42fc-b829-f7dbc59b6634",
+      "kv_secret": "claude-app-private-key-supply",
+      "orgs": ["4000-0000-SM-Supply"]
+    },
+    "create": {
+      "github_app": "sm-claude-create",
+      "entra_app": "SimpleMotion-Claude-OIDC-Create",
+      "client_id": "9bf9ff43-676f-467d-942f-5f48b85adaf8",
+      "kv_secret": "claude-app-private-key-create",
+      "orgs": ["5000-0000-SM-Create"]
+    },
+    "checks": {
+      "github_app": "sm-claude-checks",
+      "entra_app": "SimpleMotion-Claude-OIDC-Checks",
+      "client_id": "8becd9d6-72a5-4e61-bca8-623a72ca4980",
+      "kv_secret": "claude-app-private-key-checks",
+      "orgs": ["6000-0000-SM-Checks"]
+    },
+    "deploy": {
+      "github_app": "sm-claude-deploy",
+      "entra_app": "SimpleMotion-Claude-OIDC-Deploy",
+      "client_id": "26601e46-077f-47e5-83d3-aee89333bf56",
+      "kv_secret": "claude-app-private-key-deploy",
+      "orgs": ["7000-0000-SM-Deploy"]
+    },
+    "corpus": {
+      "github_app": "sm-claude-corpus",
+      "entra_app": "SimpleMotion-Claude-OIDC-Corpus",
+      "client_id": "e3124fa3-1131-465d-adb3-458f1720ceed",
+      "kv_secret": "claude-app-private-key-corpus",
+      "orgs": ["8000-0000-SM-Corpus"]
+    },
+    "govern": {
+      "github_app": "sm-claude-govern",
+      "entra_app": "SimpleMotion-Claude-OIDC-Govern",
+      "client_id": "719d45df-3d19-40d6-86c7-c4f55c6fddc8",
+      "kv_secret": "claude-app-private-key-govern",
+      "orgs": ["9000-0000-SM-Govern", "9001-0000-SM-Executive", "9002-0000-SM-Employees", "9011-0000-SM-Finance", "9012-0000-SM-Analysis", "9021-0000-SM-Marketing", "9997-0000-SM-Workflows", "9998-0000-SM-Templates", "9999-0000-SM-Common"]
+    }
+  }
+}
