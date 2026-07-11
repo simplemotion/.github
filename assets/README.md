@@ -6,13 +6,13 @@ GitHub exposes no REST or GraphQL endpoint for setting an org avatar: `PATCH /or
 
 ## Files
 
-- `avatar.png` — square PNG, ≥500×500, <1 MB. Canonical. The image currently live on `github.com/{{ORG_SLUG}}` should match this file at the SHA recorded in `PROVENANCE.md`.
-- `PROVENANCE.md` — append-only log: `YYYY-MM-DD <short-sha> {{ORG_SLUG}} <uploader>`.
+- `avatar.png` — square PNG, ≥500×500, <1 MB. Canonical. The image currently live on `github.com/simplemotion` should match this file at the SHA recorded in `PROVENANCE.md`.
+- `PROVENANCE.md` — append-only log: `YYYY-MM-DD <short-sha> simplemotion <uploader>`.
 
 ## Upload procedure
 
 1. Drop the new image in as `avatar.png`. Commit on its own.
 2. `git rev-parse --short HEAD` — grab the SHA.
-3. Open `https://github.com/organizations/{{ORG_SLUG}}/settings/profile`.
+3. Open `https://github.com/organizations/simplemotion/settings/profile`.
 4. **Profile picture → Upload a photo** → pick `avatar.png` → **Set new profile picture**.
 5. Append the line to `PROVENANCE.md`. Commit.
