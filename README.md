@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <em>Engineered for Architecture, Entertainment and Industry.</em>
+  <em>Engineered for Architecture, Entertainment, Industry and Manufacturing.</em>
 </p>
 
 # {{ORG_DISPLAY_NAME}} — `.github`
