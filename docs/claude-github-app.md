@@ -1,76 +1,119 @@
-# SimpleMotion Claude GitHub App (OIDC + Key Vault)
+# SimpleMotion Claude GitHub App (OIDC + Key Vault), per‑family
 
 Enterprise setup for running Claude in GitHub Actions across SimpleMotion orgs
-under a single, centrally-controlled bot identity — **without storing any
-long-lived credential in GitHub**. Mirrors the cert-mint → OIDC migration
-(PR #83): no private signing material lives as a GitHub secret.
+under centrally‑controlled bot identities — **without storing any long‑lived
+credential in GitHub**. Mirrors the cert‑mint → OIDC migration (PR #83): no
+private signing material lives as a GitHub secret.
 
-## Architecture
+## Why families (one App stack per tier‑1 org family)
+
+The enterprise has **34 orgs**, but for the GitHub Actions issuer Entra
+federated identity credentials (FICs) cap at **20 per app** (see "Federation
+scoping" below), and the only non‑spoofable FIC is **one glob per org**. So we
+don't run a single global bot. We run **one stack per tier‑1 org family** — a
+tier‑1 org plus its numeric‑prefix tier‑2 children:
+
+| Family | GitHub App | Entra app | KV secret | Orgs |
+|---|---|---|---|---|
+| tier‑0 | `sm-claude-simple`  | `…-OIDC-Simple`  | `claude-app-private-key`         | simplemotion |
+| 1000 Client | `sm-claude-client`  | `…-OIDC-Client`  | `…-client` | 1000 |
+| 2000 Manage | `sm-claude-manage`  | `…-OIDC-Manage`  | `…-manage` | 2000, 2019–2026 (9) |
+| 3000 Design | `sm-claude-design`  | `…-OIDC-Design`  | `…-design` | 3000, 3400, 3401–3404, 3497–3499 (9) |
+| 4000 Supply | `sm-claude-supply`  | `…-OIDC-Supply`  | `…-supply` | 4000 |
+| 5000 Create | `sm-claude-create`  | `…-OIDC-Create`  | `…-create` | 5000 |
+| 6000 Checks | `sm-claude-checks`  | `…-OIDC-Checks`  | `…-checks` | 6000 |
+| 7000 Deploy | `sm-claude-deploy`  | `…-OIDC-Deploy`  | `…-deploy` | 7000 |
+| 8000 Corpus | `sm-claude-corpus`  | `…-OIDC-Corpus`  | `…-corpus` | 8000 |
+| 9000 Govern | `sm-claude-govern`  | `…-OIDC-Govern`  | `…-govern` | 9000, 9001, 9002, 9011, 9012, 9021, 9997, 9998, 9999 (9) |
+
+The canonical map (client IDs, secret names, org lists) lives in
+`scripts/claude-families.json`.
+
+Each App is installed **only** on its family's orgs, and each Entra app trusts
+**only** its family's orgs. So a Design‑family workflow physically cannot mint a
+token for a Govern repo, and access follows the org tree: grant a person the
+families they should reach. This is the access boundary — the per‑family split
+*is* the control, replacing the earlier exec/employee idea.
+
+Every family is ≤9 orgs, comfortably under the 20‑FIC cap. That headroom is the
+reason to shard by family rather than chase one global identity.
+
+## Architecture (identical mechanism for every family)
 
 ```
 caller repo workflow (workflow-templates/claude.yml)
-   │  uses:
+   │  uses:  (passes this org's family vars: app_id, client_id, kv_secret …)
    ▼
-simplemotion/.github/.github/workflows/claude.yml   (reusable)
+simplemotion/.github/.github/workflows/claude.yml   (ONE shared reusable wf)
    │  1. azure/login@v2 via GitHub OIDC  (id-token: write)
    ▼
-Entra ID app  ── federated credential validates the OIDC token,
-(workload identity)    trust pinned to THIS reusable workflow
+Entra ID app for the family  ── federated credential validates the OIDC token;
+(workload identity)             trust pinned to repo:<this-org>/*:environment:claude-bot
    │  2. returns a short-lived Azure token
    ▼
-Azure Key Vault  ── 3. read claude-app-private-key (PEM)
+Azure Key Vault sm-claude-kv  ── 3. read the family's claude-app-private-key-<family>
    │
    ▼
 actions/create-github-app-token  ── 4. mint 1-hour, repo-scoped token
    │
    ▼
-anthropics/claude-code-action    ── 5. run as SimpleMotion-Claude bot
+anthropics/claude-code-action    ── 5. run as sm-claude-<family>[bot]
 ```
 
-The **only** secret stored in GitHub is `ANTHROPIC_API_KEY`. The App private
-key exists in Key Vault and transiently (masked) in one runner step.
+There is **one** reusable workflow for the whole enterprise; only the per‑org
+Actions *variables* differ between families. The only secret stored in GitHub
+is `ANTHROPIC_API_KEY` (shared, org‑level). Each App private key exists only in
+Key Vault and transiently (masked) in one runner step.
 
 ## Components in this repo
 
 | Path | Role |
 |---|---|
-| `.github/workflows/claude.yml` | Central **reusable** workflow — does the OIDC → Key Vault → token mint → run. |
-| `workflow-templates/claude.yml` | Per-repo **caller stub**, offered org-wide via "New workflow". Carries no secrets. |
+| `.github/workflows/claude.yml` | Central **reusable** workflow — OIDC → Key Vault → token mint → run. Takes `kv_secret_name` so one vault holds all families' keys. |
+| `workflow-templates/claude.yml` | Per‑repo **caller stub**, offered org‑wide via "New workflow". Carries no secrets; reads the family's IDs from org vars. |
 | `workflow-templates/claude.properties.json` | Metadata for the template picker. |
-| `scripts/provision-claude-app.sh` | Stands up the Azure side (Key Vault, Entra app, RBAC, federated credential). |
+| `scripts/provision-claude-app.sh` | Stands up the Azure side **for one family** (Entra app, SP, per‑org FICs, RBAC, optional key). |
+| `scripts/claude-families.json` | Canonical family → orgs / IDs / secret map. |
 
-## One-time setup
+## Per‑family setup
 
-1. **Create the GitHub App** "SimpleMotion-Claude" (owned by the `simplemotion`
-   org). Minimal permissions: Contents R/W, Pull requests R/W, Issues R/W,
-   Metadata R. Webhook off. Generate a private key → download the `.pem`.
-   Register a **second** private key too, so rotation is zero-downtime.
+Repeat for each family (the tier‑0 `simple` family already exists — it's the
+renamed pilot stack and needs nothing).
 
-2. **Provision Azure** — from a machine logged in to the tenant:
+1. **Create the GitHub App** for the family (owner: the `simplemotion` org), via
+   the pre‑filled "New App" form (there is no API to create a GitHub App).
+   Permissions: Contents R/W, Pull requests R/W, Issues R/W, Metadata R.
+   Webhook **off**. Set **"Where can this GitHub App be installed?" → Any
+   account** (so it can install on the family's other orgs). Generate a private
+   key → download the `.pem`. Optionally register a second key for zero‑downtime
+   rotation.
+
+2. **Provision Azure** for the family:
 
    ```bash
    ./scripts/provision-claude-app.sh \
-     --pem ./claude-app.pem \
+     --entra-app  SimpleMotion-Claude-OIDC-Design \
      --resource-group sm-automation \
-     --location australiaeast \
      --vault sm-claude-kv \
-     --app-name SimpleMotion-Claude \
-     --orgs "simplemotion 2000-sm-manage 3000-sm-design ..."
+     --secret-name claude-app-private-key-design \
+     --orgs "3000-0000-SM-Design 3400-0000-SM-Software 3401-0000-SM-Simplicity-v01 ..." \
+     --pem ./sm-claude-design.pem
    ```
 
-   Delete the local `.pem` afterwards; Key Vault is now the source of truth.
+   Delete the local `.pem` afterwards; Key Vault is the source of truth.
 
-3. **Install the App per org** — admin consent, "All repositories". This step
-   is inherently manual (GitHub's permission model); it's the only per-org
-   gate, and it's *your* app, so scope/rotation/revocation stay central.
+3. **Install the App** on each org in the family (admin consent, "All
+   repositories"). This is the only per‑org gate, and it's *your* app, so
+   scope/rotation/revocation stay central.
 
-4. **Set org-level Actions variables + secret** (non-sensitive values are
-   `vars`, the API key is a `secret`). Scriptable across the org roster:
+4. **Set org‑level Actions variables + secret** on every org in the family. The
+   five non‑sensitive values are `vars`; the API key is a `secret`:
 
    ```bash
-   gh api user/memberships/orgs --jq '.[].organization.login' | while read -r org; do
+   for org in <family orgs>; do
      gh variable set SM_CLAUDE_APP_ID          --org "$org" --visibility all --body "$APP_ID"
      gh variable set SM_CLAUDE_KV_NAME         --org "$org" --visibility all --body "sm-claude-kv"
+     gh variable set SM_CLAUDE_KV_SECRET       --org "$org" --visibility all --body "claude-app-private-key-design"
      gh variable set SM_CLAUDE_AZURE_CLIENT_ID --org "$org" --visibility all --body "$AZURE_CLIENT_ID"
      gh variable set SM_AZURE_TENANT_ID        --org "$org" --visibility all --body "$TENANT_ID"
      gh variable set SM_AZURE_SUBSCRIPTION_ID  --org "$org" --visibility all --body "$SUB_ID"
@@ -78,98 +121,126 @@ key exists in Key Vault and transiently (masked) in one runner step.
    done
    ```
 
+   `SM_CLAUDE_APP_ID` after creation = `gh api /apps/<app-slug> --jq .id`
+   (works once the App is public).
+
 5. **Adopt the caller stub** in repos that want the bot — via the org "New
    workflow" template, or commit `workflow-templates/claude.yml` content to
-   `.github/workflows/claude.yml` in the target repo. The target repo must also
-   have a **`claude-bot` environment** (matches the FIC subject).
+   `.github/workflows/claude.yml`. The target repo must also have a
+   **`claude-bot` environment** (matches the FIC subject).
 
 ### Caller/runtime requirements (learned from the pilot)
 
 - **Caller must grant token scopes.** A reusable workflow's permissions are
-  capped by the caller, and SimpleMotion's org/repo default is read-only. The
-  caller stub therefore declares `permissions: { id-token: write, contents:
-  write, pull-requests: write, issues: write }`. Omit it and the run fails at
-  startup with a generic "workflow file issue".
+  capped by the caller, and SimpleMotion's org/repo default is read‑only. The
+  caller stub declares `permissions: { id-token: write, contents: write,
+  pull-requests: write, issues: write }`. Omit it and the run fails at startup
+  with a generic "workflow file issue".
 - **Checkout before Claude.** The reusable workflow runs `actions/checkout`
   (with the minted token) before `claude-code-action`, which needs a working
   tree to branch from — otherwise: `fatal: not a git repository`.
 
+## Plugin association — domain skills per family
+
+Each family maps 1:1 to a Claude Code plugin in the enterprise marketplace
+`simplemotion/sm-plugins` (the plugin names match: `sm-design`, `sm-govern`, …).
+When `@claude` runs in a family's repo, the reusable workflow loads that family's
+plugin so the bot carries the right domain skills — the design bot gets
+`sm-design`, the govern bot gets `sm-govern`, and so on.
+
+How it loads (set per org via the `SM_CLAUDE_PLUGIN` var, e.g. `sm-design`):
+
+1. `sm-plugins` is `internal`, and the family's minted token is scoped to the
+   *calling* repo — it cannot clone the marketplace. So the workflow mints a
+   SECOND token from a shared, read-only **marketplace-reader** GitHub App
+   (`sm-claude-marketplace-reader`, installed only on `simplemotion/sm-plugins`,
+   Contents: read). Its key lives in the same Key Vault
+   (`claude-marketplace-reader-key`); every family's service principal has read
+   RBAC on that one secret, so the family's existing Azure identity can fetch it
+   — no new long-lived credential, marketplace stays internal.
+2. The workflow checks out `sm-plugins` into `./.sm-plugins` with that read-only
+   token, then runs the action with `claude_args: --plugin-dir
+   .sm-plugins/plugins/<plugin>`. `--plugin-dir` loads the plugin (and its
+   skills) for that session only.
+
+Both `SM_CLAUDE_PLUGIN` and `SM_CLAUDE_READER_APP_ID` are optional: if either is
+unset the bot simply runs with no plugin (still fully functional). The
+marketplace‑reader App ID is shared across all families — set `SM_CLAUDE_READER_APP_ID`
+once per org (it's the same value everywhere).
+
+> Note: `sm-simple` bundles MCP servers (M365/Xero) that need credentials. In CI
+> those servers fail to connect (non‑fatal — Claude continues); only the skills
+> are used. The other nine plugins are skills‑only and load cleanly.
+
 ## Federation scoping — the critical control
 
-The federated credential decides *which GitHub job* may pull the key. Get this
+The federated credential decides *which GitHub job* may pull a key. Get this
 tight or the whole design is moot.
 
-**Verified tenant behaviour (SM tenant, 2026-06-13).** Flexible FICs *are*
-available, but for the GitHub Actions issuer the matching expression accepts
-**only the `sub` claim** (with `eq` or `matches`). Every other claim is
-refused:
+**Verified tenant behaviour (SM tenant, 2026-06-13; cap reconfirmed on MS Learn
+2026-06-20).** For the GitHub Actions issuer the matching expression accepts
+**only the `sub` claim** (with `eq` or `matches`). Every other claim is refused:
 
 | Expression | Result |
 |---|---|
 | `claims['sub'] eq '…'` | ✅ accepted |
-| `claims['sub'] matches 'repo:simplemotion/.*:environment:claude-bot'` | ✅ accepted |
+| `claims['sub'] matches 'repo:<org>/*:environment:claude-bot'` | ✅ accepted (glob) |
 | `claims['job_workflow_ref'] …` | ❌ "unallowed claim" |
 | `claims['repository'] …` / `claims['repository_owner'] …` | ❌ "cannot use operator" |
 
 So you **cannot** pin trust to the reusable workflow via `job_workflow_ref` —
-trust can only anchor to the caller repo's `sub`.
+trust anchors only to the caller repo's `sub`.
 
-**Verified capacity limits (same tenant, same date):**
+**Capacity limits:**
 
 | Limit | Value |
 |---|---|
-| Federated credentials per app | **20** (21st: "size of the object has exceeded its limit") |
+| Federated credentials per app | **20** |
 | `claimsMatchingExpression` value length | **128 characters** |
-| Regex alternation in the expression | **supported** — `repo:(orgA\|orgB)/.*:…` |
 
-- **Primary (used by the provisioning script):** flexible FICs with org logins
-  **enumerated and batched** via regex alternation, each group kept under 128
-  chars and pinning the `claude-bot` environment:
+**`matches` is GLOB, not regex** (verified by real token exchange):
+`repo:<org>/*:environment:claude-bot` works; `*` spans within a path segment
+and a literal suffix may follow. Regex `.*` and alternation `(a|b)` pass
+*creation validation* but **fail at runtime** — do not use them.
 
-  ```
-  claims['sub'] matches 'repo:(orgA|orgB|orgC)/.*:environment:claude-bot'
-  ```
+**The rule: one glob FIC per org.**
 
-  Trust = (one of those exact orgs) AND (the `claude-bot` environment). The
-  reusable workflow sets `environment: claude-bot`, so the caller's OIDC `sub`
-  carries the `:environment:claude-bot` suffix and matches. The current 34 SM
-  orgs pack into **12 FICs** — well under the 20 cap. Run the script with
-  `--orgs "<space-separated logins>"`; it greedily batches.
+```
+claims['sub'] matches 'repo:<ORG>/*:environment:claude-bot'
+```
 
-- **Enumerate, don't pattern-match.** A regex like `repo:[0-9]{4}-.*-SM-.*`
-  would collapse this to ~2 FICs, but org logins are globally registerable on
-  github.com — an attacker could claim a matching name and assume the identity.
-  Since this guards the App private key, list exact logins.
+Trust = (this exact org) AND (the `claude-bot` environment). The reusable
+workflow sets `environment: claude-bot`, so the caller's OIDC `sub` carries the
+`:environment:claude-bot` suffix and matches.
 
-- **Fallback (if you ever exceed 20 FICs):** run the token-mint only in a
-  single dedicated automation repo and federate on an **exact** `sub` (a plain
-  non-flexible FIC works) with a protected environment:
-
-  ```
-  repo:<owner>/<automation-repo>:environment:claude-bot
-  ```
-
-- **Do NOT** drop the `:environment:claude-bot` anchor or widen to a cross-org
-  wildcard — either lets unintended workflows assume the identity and pull the
-  key.
+- **Enumerate exact org logins; never pattern‑match across orgs.** A glob like
+  `repo:*-SM-*/*` would collapse a family (or the whole enterprise) to one FIC,
+  but org logins are globally registerable on github.com — an attacker could
+  claim a matching name and assume the identity to read the App key. Sharding by
+  family keeps every app under the 20‑FIC cap *without* a loose pattern.
+- **Do NOT** drop the `:environment:claude-bot` anchor or widen to a cross‑org
+  wildcard — either lets unintended workflows assume the identity and pull a key.
 
 The reusable workflow pins `environment: claude-bot`; attach required reviewers
 / branch filters to that environment for an extra gate.
 
 ## Hardening
 
-- **Pin third-party actions to commit SHAs** (`azure/login`,
+- **Pin third‑party actions to commit SHAs** (`azure/login`,
   `actions/create-github-app-token`, `anthropics/claude-code-action`) before
-  enterprise rollout. Tags in the workflow are for readability only.
-- **Least privilege everywhere:** the SP can read one secret; the minted token
-  is repo-scoped and 1-hour; the App permission set is minimal.
-- **Rotate** the App private key periodically; with two registered keys this
-  is a single `az keyvault secret set` with no downtime.
-- **Never** store the App `.pem` in any repo or as a GitHub secret.
+  wider rollout. Tags in the workflow are for readability only.
+- **Least privilege everywhere:** each SP can read **one** secret (its family's,
+  RBAC‑scoped to the secret path, not the vault); the minted token is repo‑scoped
+  and 1‑hour; each App's permission set is minimal.
+- **Rotate** App private keys periodically; with two registered keys per app
+  this is a single `az keyvault secret set` with no downtime.
+- **Never** store an App `.pem` in any repo or as a GitHub secret.
 
 ## Notes
 
-- Per this repo's `CLAUDE.md`, changes here apply to `simplemotion` only;
-  enterprise-wide rollout of the template is handled via the Orgs rollout
-  automation. The reusable workflow is referenced from other orgs' repos by
-  its full path `simplemotion/.github/.github/workflows/claude.yml@<ref>`.
+- Per this repo's `CLAUDE.md`, changes here apply to `simplemotion`; the
+  reusable workflow is referenced from other orgs' repos by its full path
+  `simplemotion/.github/.github/workflows/claude.yml@<ref>`.
+- Adding a new org to a family later = one `provision-claude-app.sh` run (adds
+  the org's FIC, idempotent) + install the App on it + set its org vars. A whole
+  new tier‑1 family = a new App stack following "Per‑family setup".
