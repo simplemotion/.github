@@ -1,5 +1,5 @@
 {
-  "_comment": "Canonical map of Claude bot App families. One stack per tier-1 org family (a tier-1 org + its numeric-prefix tier-2 children). client_id/entra_app are NOT secret. The App private key lives only in Key Vault (secret named per kv_secret). As of 2026-07-24 every family loads the single consolidated plugin 'sm-simple' (the per-discipline plugins were merged) from the canonical cohort marketplace 9001-0000-SM-Executive/sm-executive (the old single simplemotion/sm-plugins marketplace was retired/archived). See docs/claude-github-app.md.",
+  "_comment": "Canonical map of Claude bot App families. One stack per tier-1 org family (a tier-1 org + its numeric-prefix tier-2 children). client_id/entra_app are NOT secret. The App private key lives only in Key Vault (secret named per kv_secret). As of 2026-07-24 every family loads the single consolidated plugin 'sm-simple' (the per-discipline plugins were merged) from the canonical cohort marketplace simplemotion/sm-executive (the old single simplemotion/sm-plugins marketplace was retired/archived). See docs/claude-github-app.md.",
   "shared": {
     "resource_group": "sm-automation",
     "vault": "sm-claude-kv",
@@ -7,11 +7,11 @@
     "environment": "claude-bot",
     "tenant_id": "7fdf19e4-d123-4c78-86c6-c68ac5a0d1d2",
     "subscription_id": "fe1a68af-e790-475e-81f0-84b5fe6d040d",
-    "marketplace_owner": "9001-0000-SM-Executive",
+    "marketplace_owner": "simplemotion",
     "marketplace_repo": "sm-executive",
     "marketplace_reader_kv_secret": "claude-marketplace-reader-key",
     "marketplace_reader_github_app": "sm-claude-marketplace-reader",
-    "_marketplace_note": "Plugin source is the canonical cohort marketplace (sm-executive); content is the single 'sm-simple' plugin, identical across the four private cohort marketplaces (sm-executive/sm-employees/sm-freelance/sm-customers). The marketplace-reader App (sm-claude-marketplace-reader) must be installed on 9001-0000-SM-Executive with Contents:read on sm-executive (it previously read simplemotion/sm-plugins)."
+    "_marketplace_note": "Plugin source is the canonical cohort marketplace (sm-executive); content is the single 'sm-simple' plugin, identical across the four private cohort marketplaces (sm-executive/sm-employees/sm-freelance/sm-customers). The marketplace-reader App (sm-claude-marketplace-reader) must be installed on simplemotion with Contents:read on sm-executive (it previously read simplemotion/sm-plugins)."
   },
   "families": {
     "simple": {
