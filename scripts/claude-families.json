@@ -9,9 +9,7 @@
     "subscription_id": "fe1a68af-e790-475e-81f0-84b5fe6d040d",
     "marketplace_owner": "simplemotion",
     "marketplace_repo": "sm-executive",
-    "marketplace_reader_kv_secret": "claude-marketplace-reader-key",
-    "marketplace_reader_github_app": "sm-claude-marketplace-reader",
-    "_marketplace_note": "Plugin source is the canonical cohort marketplace (sm-executive); content is the single 'sm-simple' plugin, identical across the four private cohort marketplaces (sm-executive/sm-employees/sm-freelance/sm-customers). The marketplace-reader App (sm-claude-marketplace-reader) must be installed on simplemotion with Contents:read on sm-executive (it previously read simplemotion/sm-plugins)."
+    "_marketplace_note": "Plugin source is the canonical cohort marketplace (simplemotion/sm-executive); content is the single 'sm-simple' plugin, identical across the four private cohort marketplaces. NOTE: the marketplace-reader App (sm-claude-marketplace-reader) was never created and has been removed from this config; if the sm-claude bot pilot is resumed, provision a read-only App on simplemotion with Contents:read on sm-executive and re-add marketplace_reader_github_app + marketplace_reader_kv_secret here."
   },
   "families": {
     "simple": {

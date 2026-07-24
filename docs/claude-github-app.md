@@ -142,6 +142,9 @@ renamed pilot stack and needs nothing).
 
 ## Plugin association — the `sm-simple` plugin per family
 
+> **Status (2026-07-24):** the `sm-claude-marketplace-reader` App described below was never created (the bot pilot is blocked), and its references were removed from `claude-families.json`. When the pilot resumes, create a read-only App on `simplemotion` (Contents:read on `sm-executive`) and re-add `marketplace_reader_github_app` / `marketplace_reader_kv_secret`.
+
+
 As of 2026-07-24 the marketplace ships a **single consolidated plugin, `sm-simple`**
 (the former per-discipline plugins — `sm-design`, `sm-govern`, … — were merged into it),
 so **every family loads `sm-simple`**. When `@claude` runs in a family's repo, the
