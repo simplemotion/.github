@@ -1,5 +1,5 @@
 {
-  "_comment": "Canonical map of Claude bot App families. One stack per tier-1 org family (a tier-1 org + its numeric-prefix tier-2 children). client_id/entra_app are NOT secret. The App private key lives only in Key Vault (secret named per kv_secret). See docs/claude-github-app.md.",
+  "_comment": "Canonical map of Claude bot App families. One stack per tier-1 org family (a tier-1 org + its numeric-prefix tier-2 children). client_id/entra_app are NOT secret. The App private key lives only in Key Vault (secret named per kv_secret). As of 2026-07-24 every family loads the single consolidated plugin 'sm-simple' (the per-discipline plugins were merged) from the canonical cohort marketplace 9001-0000-SM-Executive/sm-executive (the old single simplemotion/sm-plugins marketplace was retired/archived). See docs/claude-github-app.md.",
   "shared": {
     "resource_group": "sm-automation",
     "vault": "sm-claude-kv",
@@ -7,10 +7,11 @@
     "environment": "claude-bot",
     "tenant_id": "7fdf19e4-d123-4c78-86c6-c68ac5a0d1d2",
     "subscription_id": "fe1a68af-e790-475e-81f0-84b5fe6d040d",
-    "marketplace_owner": "simplemotion",
-    "marketplace_repo": "sm-plugins",
+    "marketplace_owner": "9001-0000-SM-Executive",
+    "marketplace_repo": "sm-executive",
     "marketplace_reader_kv_secret": "claude-marketplace-reader-key",
-    "marketplace_reader_github_app": "sm-claude-marketplace-reader"
+    "marketplace_reader_github_app": "sm-claude-marketplace-reader",
+    "_marketplace_note": "Plugin source is the canonical cohort marketplace (sm-executive); content is the single 'sm-simple' plugin, identical across the four private cohort marketplaces (sm-executive/sm-employees/sm-freelance/sm-customers). The marketplace-reader App (sm-claude-marketplace-reader) must be installed on 9001-0000-SM-Executive with Contents:read on sm-executive (it previously read simplemotion/sm-plugins)."
   },
   "families": {
     "simple": {
@@ -26,7 +27,7 @@
     },
     "client": {
       "github_app": "sm-claude-client",
-      "plugin": "sm-client",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Client",
       "client_id": "5d2b9788-9ee3-41e2-87c3-1c39c5839cc8",
       "kv_secret": "claude-app-private-key-client",
@@ -36,7 +37,7 @@
     },
     "manage": {
       "github_app": "sm-claude-manage",
-      "plugin": "sm-manage",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Manage",
       "client_id": "14371522-51d8-4abd-a308-f8699b05d9cf",
       "kv_secret": "claude-app-private-key-manage",
@@ -54,7 +55,7 @@
     },
     "design": {
       "github_app": "sm-claude-design",
-      "plugin": "sm-design",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Design",
       "client_id": "b05448a7-addc-48e4-aca6-45b530af4f3e",
       "kv_secret": "claude-app-private-key-design",
@@ -72,7 +73,7 @@
     },
     "supply": {
       "github_app": "sm-claude-supply",
-      "plugin": "sm-supply",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Supply",
       "client_id": "a051a756-ba8b-42fc-b829-f7dbc59b6634",
       "kv_secret": "claude-app-private-key-supply",
@@ -82,7 +83,7 @@
     },
     "create": {
       "github_app": "sm-claude-create",
-      "plugin": "sm-create",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Create",
       "client_id": "9bf9ff43-676f-467d-942f-5f48b85adaf8",
       "kv_secret": "claude-app-private-key-create",
@@ -92,7 +93,7 @@
     },
     "checks": {
       "github_app": "sm-claude-checks",
-      "plugin": "sm-checks",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Checks",
       "client_id": "8becd9d6-72a5-4e61-bca8-623a72ca4980",
       "kv_secret": "claude-app-private-key-checks",
@@ -102,7 +103,7 @@
     },
     "deploy": {
       "github_app": "sm-claude-deploy",
-      "plugin": "sm-deploy",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Deploy",
       "client_id": "26601e46-077f-47e5-83d3-aee89333bf56",
       "kv_secret": "claude-app-private-key-deploy",
@@ -112,7 +113,7 @@
     },
     "corpus": {
       "github_app": "sm-claude-corpus",
-      "plugin": "sm-corpus",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Corpus",
       "client_id": "e3124fa3-1131-465d-adb3-458f1720ceed",
       "kv_secret": "claude-app-private-key-corpus",
@@ -122,7 +123,7 @@
     },
     "govern": {
       "github_app": "sm-claude-govern",
-      "plugin": "sm-govern",
+      "plugin": "sm-simple",
       "entra_app": "SimpleMotion-Claude-OIDC-Govern",
       "client_id": "719d45df-3d19-40d6-86c7-c4f55c6fddc8",
       "kv_secret": "claude-app-private-key-govern",
@@ -130,6 +131,8 @@
         "9000-0000-SM-Govern",
         "9001-0000-SM-Executive",
         "9002-0000-SM-Employees",
+        "9003-0000-SM-Freelance",
+        "9004-0000-SM-Customers",
         "9011-0000-SM-Finance",
         "9012-0000-SM-Analysis",
         "9021-0000-SM-Marketing",
