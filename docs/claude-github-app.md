@@ -150,7 +150,7 @@ reusable workflow loads `sm-simple` so the bot carries the full SimpleMotion ski
 How it loads (set per org via the `SM_CLAUDE_PLUGIN` var — now uniformly `sm-simple`):
 
 1. The plugin source is the **canonical cohort marketplace**
-   `9001-0000-SM-Executive/sm-executive`. (The single `simplemotion/sm-plugins`
+   `simplemotion/sm-executive`. (The single `simplemotion/sm-plugins`
    marketplace was retired/archived; `sm-simple` now lives as a self-contained copy in
    each of the four private cohort marketplaces — `sm-executive` / `sm-employees` /
    `sm-freelance` / `sm-customers` — authored canonically in `sm-executive` and fanned
@@ -158,7 +158,7 @@ How it loads (set per org via the `SM_CLAUDE_PLUGIN` var — now uniformly `sm-s
    minted token (scoped to the *calling* repo) cannot clone it, so the workflow mints a
    SECOND token from a shared, read-only **marketplace-reader** GitHub App
    (`sm-claude-marketplace-reader`). That App must be **installed on
-   `9001-0000-SM-Executive` with Contents: read on `sm-executive`** (it previously read
+   `simplemotion` with Contents: read on `sm-executive`** (it previously read
    `simplemotion/sm-plugins`). Its key lives in the same Key Vault
    (`claude-marketplace-reader-key`); every family's service principal has read RBAC on
    that one secret, so the family's existing Azure identity can fetch it — no new
