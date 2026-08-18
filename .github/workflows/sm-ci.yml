@@ -29,5 +29,5 @@ permissions:
 
 jobs:
   ci:
-    uses: simplemotion/sm-ci/.github/workflows/sm-ci.yml@main
+    uses: 3400-0000-SM-Software/3400-9991-SM-CI/.github/workflows/sm-ci.yml@main
     secrets: inherit
