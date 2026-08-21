@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="254" height="63.5" viewBox="0 0 254 63.5">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="240" height="60" viewBox="0 0 240 60">
+<g transform="translate(-0.1399,1.9465) scale(0.9448819)">
 <g transform="translate(-44.0400,-27.3700)">
   <!-- SE-v260422-215-Horizontal-ColourBlack-NoBack.svg -->
   <g transform="translate(46.592,28.672) scale(0.068)">
@@ -46,4 +47,4 @@
       <path transform="translate(7953,0)" d="M365.0889892578125 0H212.260498046875V586.8111572265625H19.1497802734375V714H557.8096923828125V586.8111572265625H365.0889892578125Z"/>
     </g>
   </g>
-</g></svg>
+</g></g></svg>
