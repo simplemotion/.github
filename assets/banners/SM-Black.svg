@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="250" height="37" viewBox="0 0 250 37">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="254" height="37.42" viewBox="0 0 254 37.42">
+<g transform="translate(2.9600,-1.2900)">
   <!-- Derived 2026-06-12 from SM-v260422-215-Horizontal-ColourBlack (wordmark) +
        SM-v260422-315/325 disk mark (white ring), mark set left of the wordmark -->
   <g transform="translate(-0.408,2.592) scale(0.068)">
@@ -29,4 +30,4 @@
   <path transform="translate(3650,0)" d="M629 0H567L153 624H150Q152 598 152.5 570.0Q153 542 154.0 512.5Q155 483 155 451V0H100V714H162L575 92H578Q577 113 576.0 142.0Q575 171 574.5 202.5Q574 234 574 261V714H629Z"/>
 </g>
   </g>
-</svg>
+</g></svg>
