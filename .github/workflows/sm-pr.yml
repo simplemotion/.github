@@ -1,0 +1,44 @@
+# SimpleMotion canonical PR gate — copy this verbatim to
+# .github/workflows/sm-pr.yml in any repo. It is IDENTICAL in every repo;
+# all per-repo behaviour (hygiene checks, OS matrix, private git deps,
+# Rust-vs-config) is auto-derived by the reusable workflow.
+#
+# Sibling of sm-ci: sm-ci.yml fires on push/tags (develop stamp + channel
+# build/dispatch); sm-pr.yml fires on pull_request (validation). The two
+# don't overlap — sm-ci no longer runs on pull_request.
+#
+# `secrets: inherit` forwards the org's SM-Binary-Bridge secrets so a repo
+# with a private git dependency (e.g. sm-auth) fetches it during the build.
+# Repos with no private deps need nothing extra.
+#
+# Pinning: callers track @main (decided 2026-06-15, per sm-ci) — a fix in
+# sm-pr reaches the whole fleet at once. See README.md "Versioning & pinning".
+name: PR
+
+on:
+  pull_request:
+    branches: [main]
+  # Also run in the merge queue so required checks re-evaluate against the
+  # actual merge result (main + PR), closing the PR-time TOCTOU window — e.g.
+  # the develop-counter-bump hygiene check. Additive and safe fleet-wide:
+  # GitHub only emits merge_group once a repo's ruleset turns the queue on, so
+  # repos without a merge queue are unaffected.
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    uses: 3400-0000-SM-Software/3400-9992-SM-PR/.github/workflows/sm-pr.yml@main
+    secrets: inherit
+    # This stub is IDENTICAL in every repo — copy it verbatim and add nothing.
+    # The `with:` block below exists only for the rare repo where a fleet-wide
+    # assertion genuinely does not apply. Uncomment a line rather than omitting
+    # this workflow: a repo with no stub cannot report the checks its ruleset
+    # requires, so none of its PRs can ever merge. Each input documents exactly
+    # when setting it false is legitimate — read that before reaching for one.
+    # with:
+    #   locked: false                     # no committed Cargo.lock (template repos)
+    #   require_ip_assignment: false      # IP genuinely not assigned to SimpleMotion.Global Pty Ltd
+    #   require_changelog_columns: false  # changelog deliberately not the enterprise table
