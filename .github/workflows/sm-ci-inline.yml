@@ -1,0 +1,145 @@
+# CI — INLINED, deliberately NOT the canonical sm-ci caller stub.
+#
+# The filename says so: `-inline` marks a fork of a shared workflow, not the
+# byte-identical caller stub every other repo carries at `sm-ci.yml`. It was
+# named `sm-ci.yml` until 2026-08-15, which invited exactly the mistake the
+# next paragraph warns against.
+#
+# Do not "restore" this to `uses: 3400-0000-SM-Software/3400-9991-SM-CI/.github/workflows/sm-ci.yml@main`.
+# It WAS that stub, byte-identical to every other repo's, and it failed at
+# STARTUP on every push from 2026-07-22 to 2026-07-31 — five consecutive runs,
+# zero jobs created, so nothing ran and no develop tag was ever stamped.
+#
+# Cause: **this repo is public; `simplemotion/sm-ci` is internal.** GitHub does
+# not permit a public repository to call a reusable workflow from an internal or
+# private one. The call is refused before any job exists — which is why the runs
+# had no jobs, and why this workflow's registered name was stuck as the file path
+# instead of `CI`: GitHub never parsed it into a successful run.
+#
+# It was not billing, though it wears the same costume: a zero-job
+# `startup_failure` repeated across many runs is documented enterprise-wide as a
+# billing-suspension symptom. Here `sm-pages` succeeded on the *same push, at the
+# same second*, and every private/internal repo runs the shared stub fine — so
+# same-repo, same-push success rules billing out.
+#
+# `simplemotion/.github` must stay public: it serves the organisation profile and the
+# bootstrap has to be fetchable anonymously. So the CI is inlined instead.
+#
+# Scope is deliberately small. This repo has no Cargo.toml, and for a non-Rust
+# repo the shared workflow only ever stamped a develop tag — no build, no
+# attestation, no channel dispatch. That single behaviour is reproduced below
+# with the same version derivation, so tags stay consistent with the fleet.
+# `id-token`/`attestations` are dropped with the build they existed for.
+# Pull-request validation stays in `sm-pr.yml`, which is unaffected.
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: write # stamp develop tags
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      is_tag: ${{ steps.v.outputs.is_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - id: v
+        shell: bash
+        run: |
+          set -euo pipefail
+          IS_TAG=false
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"; IS_TAG=true
+            # Tags drive nothing here: develop is the build-once entry channel and
+            # the other channels are promotions run from their own repo's
+            # sm-promote.yml. A hand-cut tag is a no-op past this warning.
+            case "$VERSION" in
+              *-develop-*) ;;
+              *-testing-*|*-preview-*|*-release|*-release-*)
+                echo "::warning::$VERSION: channel releases are build-once promotions — run the target channel repo's sm-promote.yml, not a source-repo tag." ;;
+              *) echo "::warning::tag $VERSION has no recognised channel suffix; nothing to do" ;;
+            esac
+          else
+            # Same derivation as the shared workflow's non-Rust path: base is one
+            # patch past the newest bare GA tag reachable from HEAD, and NNN counts
+            # commits since that tag. `.sm-version` (a bare X.Y.Z) supplies the base
+            # before a first GA tag exists; absent both, v0.1.0.
+            last_ga=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --merged HEAD --sort=-v:refname \
+                      | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+            if [ -z "$last_ga" ]; then
+              base="v0.1.0"
+              if [ -f .sm-version ]; then
+                xyz=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' .sm-version | head -1 || true)
+                [ -n "$xyz" ] && base="v$xyz"
+              fi
+              count=$(git rev-list --count HEAD)
+            else
+              IFS=. read -r M m p <<<"${last_ga#v}"
+              base="v${M}.${m}.$((p+1))"
+              count=$(git rev-list --count "${last_ga}..HEAD")
+            fi
+            VERSION=$(printf '%s-develop-%03d' "$base" "$count")
+          fi
+          {
+            echo "version=$VERSION"
+            echo "is_tag=$IS_TAG"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved $VERSION (tag=$IS_TAG)"
+
+  develop-tag:
+    needs: version
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.version.outputs.is_tag == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - shell: bash
+        run: |
+          set -euo pipefail
+          V="${{ needs.version.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$V" >/dev/null; then
+            echo "$V already tagged — nothing to do"; exit 0
+          fi
+          # A merge that touches nothing but CHANGE.md produces a byte-identical
+          # artefact, so stamping it asserts a build that does not exist — and
+          # the tag it mints then owes CHANGE.md a row that cannot have been
+          # written, because the key is only knowable after the merge. That is a
+          # loop: the PR adding the missing row mints a tag of its own.
+          #
+          # Kept in step with simplemotion/sm-ci, which gained this guard on
+          # 2026-08-14. It has to be copied rather than inherited: this repo is
+          # public and sm-ci is internal, so the reusable workflow cannot be
+          # called from here (see the header). A fix there does NOT reach here.
+          #
+          # Fails OPEN — if the range cannot be computed (force push, unknown
+          # `before`), we stamp rather than silently stop tagging.
+          before="${{ github.event.before }}"
+          changed=''
+          if [ -n "$before" ] \
+            && [ "$before" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "${before}^{commit}" 2>/dev/null; then
+            changed=$(git diff --name-only "$before" "${{ github.sha }}" --)
+          fi
+          if [ -n "$changed" ] \
+            && [ -z "$(printf '%s\n' "$changed" | grep -vx 'CHANGE.md' || true)" ]; then
+            echo "only CHANGE.md changed — no new build artefact, so no develop tag"
+            exit 0
+          fi
+          # Annotated, per enterprise policy: `git describe` prefers annotated
+          # tags, so a lightweight tag here would shadow a GA on the same commit.
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$V" -m "Dev build $V"
+          git push origin "$V"
+          echo "Stamped $V"
