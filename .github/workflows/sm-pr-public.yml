@@ -33,6 +33,68 @@ permissions:
   contents: read
 
 jobs:
+  # `meta` exists here for TWO reasons, and the second is the load-bearing one.
+  #
+  # 1. It does real work: decides whether the repo carries Rust, and which host
+  #    runners a Rust gate would need. Ported from the canonical sm-pr in
+  #    3400-9992-SM-PR, minus the queue_matrix / pr_matrix input overrides — this
+  #    workflow declares no inputs, and those exist only to let a caller force a
+  #    matrix. The detection itself is unchanged.
+  #
+  # 2. The org ruleset `sm-required-pr-checks` requires the contexts `pr / meta`
+  #    and `pr / Repo hygiene`. Without this job a public repo can only ever
+  #    report one of the two, so setting `has_pr_gate=true` on it would leave the
+  #    required checks unable to report — and NOTHING bypasses required status
+  #    checks, not org admin, not `gh pr merge --admin`. The repo would be
+  #    permanently unmergeable. sm-audit calls that DEADLOCKED and currently
+  #    counts zero; `.github`, `sm-install` and `sm-release` were the three
+  #    instances waiting behind it.
+  #
+  # There is deliberately no `rust` job here, so `os_matrix` has no consumer
+  # today. That is not an oversight: none of the public repos carries a
+  # Cargo.toml, so the gate would always skip. The output is kept so that adding
+  # a public `rust` job later needs no change to this one.
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      has_cargo: ${{ steps.m.outputs.has_cargo }}
+      os_matrix: ${{ steps.m.outputs.os_matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: m
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files '*Cargo.toml' | grep -q .; then HAS_CARGO=true; else HAS_CARGO=false; fi
+          rt=$(git ls-files '*rust-toolchain.toml' | awk -F/ '{print NF": "$0}' | sort -n | head -1 | sed 's/^[0-9]*: //')
+          # A Cargo repo WITHOUT the enterprise toolchain pin is either
+          # not-yet-conformant or a bespoke build, so it gets hygiene only.
+          # A pin listing only non-host targets (wasm/embedded) yields no host OS.
+          OSES='[]'
+          if [ "$HAS_CARGO" = true ] && [ -n "$rt" ]; then
+            triples=$(awk '/targets[[:space:]]*=[[:space:]]*\[/{f=1} f{print} /\]/{if(f)exit}' "$rt" \
+                      | grep -oE '[a-z0-9_]+-[a-z0-9_]+-[a-z0-9_-]+' || true)
+            if [ -n "$triples" ]; then
+              # map_os is a function rather than an inline `case` because `case`
+              # patterns inside $( ) break bash 3.2's parser, which is what macOS
+              # ships — an inline version could not be tested locally.
+              map_os() {
+                case "$1" in
+                  *-apple-darwin)    echo macos-latest ;;
+                  *-linux-*)         echo ubuntu-latest ;;
+                  *-windows-msvc)    echo windows-latest ;;
+                  *) : ;;
+                esac
+              }
+              oslist=$(printf '%s\n' "$triples" | while IFS= read -r t; do map_os "$t"; done | awk '!seen[$0]++')
+              [ -n "$oslist" ] && OSES=$(printf '%s\n' "$oslist" | jq -R . | jq -sc '.')
+            else
+              OSES='["ubuntu-latest"]'
+            fi
+          fi
+          echo "has_cargo=$HAS_CARGO" >> "$GITHUB_OUTPUT"
+          echo "os_matrix=$OSES"     >> "$GITHUB_OUTPUT"
+
   hygiene:
     name: Repo hygiene
     runs-on: ubuntu-latest
