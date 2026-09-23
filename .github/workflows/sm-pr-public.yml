@@ -122,16 +122,19 @@ jobs:
           # real defect class (a 2026-08-04 audit found 203 of 414 ASSIGN.md
           # files missing the MIT section and the copyright line).
           fail=0
-          if ! grep -qF 'SimpleMotion.Global Pty Ltd' ASSIGN.md; then
-            echo "::error file=ASSIGN.md::no assignee named — must be SimpleMotion.Global Pty Ltd"
+          # TRANSITION 2026-09-23: the assignee was renamed SimpleMotion.Design Pty Ltd
+          # (Form 205 lodged 23 Sep 2026); the fleet sweep rewriting ASSIGN.md is in
+          # flight. Accept the former name until it has merged everywhere, then drop it.
+          if ! grep -qF -e 'SimpleMotion.Design Pty Ltd (ACN 611 618 770)' -e 'SimpleMotion.Global Pty Ltd' ASSIGN.md; then
+            echo "::error file=ASSIGN.md::no assignee named — must be SimpleMotion.Design Pty Ltd (ACN 611 618 770)"
             fail=1
           fi
           if ! grep -qE '^#+[[:space:]]*MIT License' ASSIGN.md; then
             echo "::error file=ASSIGN.md::missing the MIT License section"
             fail=1
           fi
-          if ! grep -qE 'Copyright \(c\) [0-9]{4} SimpleMotion\.Global Pty Ltd' ASSIGN.md; then
-            echo "::error file=ASSIGN.md::missing the 'Copyright (c) <year> SimpleMotion.Global Pty Ltd' line"
+          if ! grep -qE 'Copyright \(c\) [0-9]{4} SimpleMotion\.(Design Pty Ltd \(ACN 611 618 770\)|Global Pty Ltd)' ASSIGN.md; then
+            echo "::error file=ASSIGN.md::missing the 'Copyright (c) <year> SimpleMotion.Design Pty Ltd (ACN 611 618 770)' line"
             fail=1
           fi
           if [ "$fail" != 0 ]; then
