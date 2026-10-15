@@ -15,4 +15,4 @@ Template for the per-org `.github` repo.
 
 ## IP
 
-All IP assigned to SimpleMotion.Design Pty Ltd (ACN 611 618 770) per `ASSIGN.md`.
+All IP assigned to SimpleMotion.Corpus Pty Ltd (ACN 703 241 169) per `ASSIGN.md`.

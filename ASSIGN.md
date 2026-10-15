@@ -10,39 +10,21 @@
   <em>Engineered for Architecture, Entertainment, Industry and Manufacturing.</em>
 </p>
 
-# Intellectual Property Assignment & License
+# Intellectual Property Assignment and Licence
 
-## Assignment of Rights
+**Owner: SimpleMotion.Corpus Pty Ltd (ACN 703 241 169)** ("SC")
 
-All contributors to this repository hereby assign all ownership, copyright, and intellectual property rights in their contributions to:
+These terms apply to each contribution made to this repository. Each person or company that makes a contribution accepts these terms by making it.
 
-**SimpleMotion.Design Pty Ltd (ACN 611 618 770)**
-
-## Scope of Assignment
-
-This assignment includes, but is not limited to:
-
-- All source code, documentation, and other materials contributed to this repository
-- All copyrights, patents, trade secrets, and other intellectual property rights
-- All rights to use, modify, distribute, sublicense, and commercialize the contributions
-- All moral rights to the extent assignable by law
-
-## Contributor Acknowledgment
-
-By contributing to this repository, contributors acknowledge and agree that:
-
-1. They have the right to assign the intellectual property in their contributions
-2. Their contributions are original work or properly licensed for inclusion
-3. All rights, title, and interest in their contributions are assigned to SimpleMotion.Design Pty Ltd (ACN 611 618 770)
-4. SimpleMotion.Design Pty Ltd (ACN 611 618 770) has exclusive ownership of all contributions
-
-## Effective Date
-
-This assignment is effective from the date of each contribution to the repository.
+1. **Assignment.** The contributor assigns to SC all intellectual property rights in the contribution, including copyright, as each right comes into existence.
+2. **Group companies.** If a SimpleMotion group company owns the contribution, that company makes the assignment in clause 1.
+3. **Warranty.** The contributor warrants that the contribution is their original work, or is properly licensed, and that they have the right to make this assignment.
+4. **Moral rights.** The contributor consents to SC and its licensees using, changing and publishing the contribution, with or without attribution.
+5. **Further assurance.** The contributor will sign any document that SC reasonably asks for to confirm this assignment.
 
 ## MIT License
 
-Copyright (c) 2026 SimpleMotion.Design Pty Ltd (ACN 611 618 770)
+Copyright (c) 2026 SimpleMotion.Corpus Pty Ltd (ACN 703 241 169)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -61,12 +43,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-## Governing Entity
-
-**SimpleMotion.Design Pty Ltd (ACN 611 618 770)**
-All rights reserved.
-
----
-
-*While this software is licensed under MIT terms to users, all intellectual property rights are owned by SimpleMotion.Design Pty Ltd (ACN 611 618 770).*
