@@ -128,20 +128,25 @@ jobs:
           # 25 Sep 2026). So the old name is not a harmless legacy spelling: an
           # ASSIGN.md naming it assigns the IP to the wrong company. Reject it outright.
           # The fleet sweep that rewrote all 466 ASSIGN.md files completed 2026-09-27.
-          if ! grep -qF 'SimpleMotion.Design Pty Ltd (ACN 611 618 770)' ASSIGN.md; then
-            echo "::error file=ASSIGN.md::no assignee named — must be SimpleMotion.Design Pty Ltd (ACN 611 618 770)"
+          # TRANSITION, 2026-10-15 (D-0087 in 9000-0005-SM-Entities): the assignee moves from
+          # SimpleMotion.Design Pty Ltd (ACN 611 618 770) to SimpleMotion.Corpus Pty Ltd
+          # (ACN 703 241 169). Both are accepted until the fleet sweep merges. Then remove the
+          # Design form here and in the copyright check below.
+          if ! grep -qF 'SimpleMotion.Corpus Pty Ltd (ACN 703 241 169)' ASSIGN.md \
+             && ! grep -qF 'SimpleMotion.Design Pty Ltd (ACN 611 618 770)' ASSIGN.md; then
+            echo "::error file=ASSIGN.md::no assignee named — must be SimpleMotion.Corpus Pty Ltd (ACN 703 241 169)"
             fail=1
           fi
           if grep -qF 'SimpleMotion.Global Pty Ltd' ASSIGN.md; then
-            echo "::error file=ASSIGN.md::names SimpleMotion.Global Pty Ltd — that name now belongs to a different company (ACN 702 678 242); the assignee is SimpleMotion.Design Pty Ltd (ACN 611 618 770)"
+            echo "::error file=ASSIGN.md::names SimpleMotion.Global Pty Ltd — that name now belongs to a different company (ACN 702 678 242); the assignee is SimpleMotion.Corpus Pty Ltd (ACN 703 241 169)"
             fail=1
           fi
           if ! grep -qE '^#+[[:space:]]*MIT License' ASSIGN.md; then
             echo "::error file=ASSIGN.md::missing the MIT License section"
             fail=1
           fi
-          if ! grep -qE 'Copyright \(c\) [0-9]{4} SimpleMotion\.Design Pty Ltd \(ACN 611 618 770\)' ASSIGN.md; then
-            echo "::error file=ASSIGN.md::missing the 'Copyright (c) <year> SimpleMotion.Design Pty Ltd (ACN 611 618 770)' line"
+          if ! grep -qE 'Copyright \(c\) [0-9]{4} SimpleMotion\.(Corpus Pty Ltd \(ACN 703 241 169\)|Design Pty Ltd \(ACN 611 618 770\))' ASSIGN.md; then
+            echo "::error file=ASSIGN.md::missing the 'Copyright (c) <year> SimpleMotion.Corpus Pty Ltd (ACN 703 241 169)' line"
             fail=1
           fi
           if [ "$fail" != 0 ]; then
