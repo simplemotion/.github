@@ -41,8 +41,9 @@ jobs:
   #    workflow declares no inputs, and those exist only to let a caller force a
   #    matrix. The detection itself is unchanged.
   #
-  # 2. The org ruleset `sm-required-pr-checks` requires the contexts `pr / meta`
-  #    and `pr / Repo hygiene`. Without this job a public repo can only ever
+  # 2. The org ruleset `sm-required-pr-checks` makes `pr / meta` and
+  #    `pr / hygiene` necessary checks. The second was `pr / Repo hygiene` until
+  #    2026-11-07; see `hygiene-legacy`. Without this job a public repo can only ever
   #    report one of the two, so setting `has_pr_gate=true` on it would leave the
   #    required checks unable to report — and NOTHING bypasses required status
   #    checks, not org admin, not `gh pr merge --admin`. The repo would be
@@ -95,8 +96,10 @@ jobs:
           echo "has_cargo=$HAS_CARGO" >> "$GITHUB_OUTPUT"
           echo "os_matrix=$OSES"     >> "$GITHUB_OUTPUT"
 
+  # The check is `pr / hygiene` (Greg, 2026-11-07). It was `pr / Repo hygiene`,
+  # as in the canonical gate 3400-9992-SM-PR.
   hygiene:
-    name: Repo hygiene
+    name: hygiene
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -379,5 +382,26 @@ jobs:
           if [[ "$head" != "# SECURE — ${{ github.event.repository.name }}" \
              && "$head" != "# SECURE — ${{ github.repository }}" ]]; then
             echo "::error file=SECURE.md::heading is '$head' — expected '# SECURE — ${{ github.repository }}'"
+            exit 1
+          fi
+
+  # TEMPORARY: the old name of the hygiene check, `pr / Repo hygiene`.
+  # In 46 orgs, the ruleset `sm-required-pr-checks` makes the old name a
+  # necessary check. This job gives the result of `hygiene` under the old name,
+  # so that a PR can merge while each ruleset changes to `pr / hygiene`. Remove
+  # this job when no ruleset names the old check.
+  hygiene-legacy:
+    name: Repo hygiene
+    needs: hygiene
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Give the result of pr / hygiene
+        env:
+          RESULT: ${{ needs.hygiene.result }}
+        run: |
+          echo "pr / hygiene: $RESULT"
+          if [ "$RESULT" != success ]; then
+            echo "::error title=pr / Repo hygiene::pr / hygiene did not pass ($RESULT). Read that check for the cause."
             exit 1
           fi
